@@ -40,61 +40,7 @@ exports.crearUsuario = async (req, res) => {
   }
 };
 
-// ======================================================
-// LOGIN DE USUARIO (JWT)
-// ======================================================
-exports.loginUsuario = async (req, res) => {
-  try {
-    let { email, password } = req.body;
 
-    // Normalizar email
-    email = email.toLowerCase();
-
-    // Buscar usuario
-    const usuario = await Usuario.findOne({ email });
-    if (!usuario) {
-      return res.status(400).json({ msg: "Usuario no existe" });
-    }
-
-    // Verificar password
-    const passwordCorrecto = await bcryptjs.compare(password, usuario.password);
-
-    if (!passwordCorrecto) {
-      return res.status(400).json({ msg: "Password incorrecto" });
-    }
-
-    // Payload para JWT
-    const payload = {
-      usuario: {
-        id: usuario._id,
-        rol: usuario.rol,
-      },
-    };
-
-    // Firmar token
-    jwt.sign(
-      payload,
-      process.env.SECRETA,
-      { expiresIn: "8h" },
-      (error, token) => {
-        if (error) throw error;
-
-        res.json({
-          token,
-          usuario: {
-            id: usuario._id,
-            nombre: usuario.nombre,
-            email: usuario.email,
-            rol: usuario.rol,
-          },
-        });
-      },
-    );
-  } catch (error) {
-    console.log(error);
-    res.status(500).json({ msg: "Error al iniciar sesión" });
-  }
-};
 
 // ======================================================
 // Obtener usuarios (solo admin)

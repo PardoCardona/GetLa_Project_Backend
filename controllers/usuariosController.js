@@ -1,14 +1,17 @@
 const Usuario = require("../models/Usuarios");
 const bcryptjs = require("bcryptjs");
+const jwt = require("jsonwebtoken");
 
 // ======================================================
 // Crear usuario (registro público o desde el admin)
 // ======================================================
 exports.crearUsuario = async (req, res) => {
+  console.log("USUARIO DESDE TOKEN:", req.usuario);
+
   try {
     let { password, email } = req.body;
 
-    // Normalizar email (evita errores por mayúsculas)
+    // Normalizar email
     email = email.toLowerCase();
     req.body.email = email;
 
@@ -24,10 +27,10 @@ exports.crearUsuario = async (req, res) => {
     // Encriptar contraseña
     usuario.password = await bcryptjs.hash(password, 10);
 
-    // Guardar usuario en BD
+    // Guardar usuario
     const usuarioAlmacenado = await usuario.save();
 
-    // Eliminar password del objeto a enviar
+    // Eliminar password de la respuesta
     const { password: _, ...usuarioSinPassword } = usuarioAlmacenado.toObject();
 
     res.status(201).json(usuarioSinPassword);
@@ -38,13 +41,67 @@ exports.crearUsuario = async (req, res) => {
 };
 
 // ======================================================
+// LOGIN DE USUARIO (JWT)
+// ======================================================
+exports.loginUsuario = async (req, res) => {
+  try {
+    let { email, password } = req.body;
+
+    // Normalizar email
+    email = email.toLowerCase();
+
+    // Buscar usuario
+    const usuario = await Usuario.findOne({ email });
+    if (!usuario) {
+      return res.status(400).json({ msg: "Usuario no existe" });
+    }
+
+    // Verificar password
+    const passwordCorrecto = await bcryptjs.compare(password, usuario.password);
+
+    if (!passwordCorrecto) {
+      return res.status(400).json({ msg: "Password incorrecto" });
+    }
+
+    // Payload para JWT
+    const payload = {
+      usuario: {
+        id: usuario._id,
+        rol: usuario.rol,
+      },
+    };
+
+    // Firmar token
+    jwt.sign(
+      payload,
+      process.env.SECRETA,
+      { expiresIn: "8h" },
+      (error, token) => {
+        if (error) throw error;
+
+        res.json({
+          token,
+          usuario: {
+            id: usuario._id,
+            nombre: usuario.nombre,
+            email: usuario.email,
+            rol: usuario.rol,
+          },
+        });
+      },
+    );
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ msg: "Error al iniciar sesión" });
+  }
+};
+
+// ======================================================
 // Obtener usuarios (solo admin)
 // ======================================================
 exports.obtenerUsuarioHome = async (req, res) => {
   try {
     const usuarios = await Usuario.find().select("-password");
-    // select("-password") quita el password de la respuesta
-
     res.json({ usuarios });
   } catch (error) {
     console.log(error);
@@ -58,22 +115,20 @@ exports.obtenerUsuarioHome = async (req, res) => {
 exports.actualizarUsuario = async (req, res) => {
   try {
     const id = req.params.id;
-
-    // Datos enviados
     const datosActualizar = { ...req.body };
 
-    // Si se envía password, encriptarla
+    // Encriptar password si se envía
     if (datosActualizar.password) {
       datosActualizar.password = await bcryptjs.hash(
         datosActualizar.password,
-        10
+        10,
       );
     }
 
     const usuarioActualizado = await Usuario.findByIdAndUpdate(
       id,
       datosActualizar,
-      { new: true }
+      { new: true },
     ).select("-password");
 
     if (!usuarioActualizado) {

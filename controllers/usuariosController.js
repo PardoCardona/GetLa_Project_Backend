@@ -6,7 +6,7 @@ const jwt = require("jsonwebtoken");
 // Crear usuario (registro público o desde el admin)
 // ======================================================
 exports.crearUsuario = async (req, res) => {
-  console.log("USUARIO DESDE TOKEN:", req.usuario);
+  
 
   try {
     let { password, email } = req.body;

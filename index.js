@@ -1,5 +1,7 @@
-console.log("SMTP_USER START:", process.env.SMTP_USER);
+
 require("dotenv").config();
+
+
 
 const express = require("express");
 const conectarDB = require("./config/db");

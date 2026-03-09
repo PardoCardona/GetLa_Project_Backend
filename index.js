@@ -1,4 +1,6 @@
-
+//Variable de despliegue .env
+//FRONTEND_URL=https://get-la-project-frontend.vercel.app
+//FRONTEND_URL=http://localhost:5173
 require("dotenv").config();
 
 

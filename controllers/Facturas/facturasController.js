@@ -1,21 +1,60 @@
 const Factura = require("../../models/Facturas/facturasM");
 const CuerpoFactura = require("../../models/cuerpoFacturas/cuerpoF");
-const Productos = require("../../models/Productos/repuestos");
+const ProductosRepuestos = require("../../models/Productos/repuestos");
+const ProductosAseo = require("../../models/Productos/aseo");
+const ProductosDotacion = require("../../models/Productos/dotacion");
 const Clientes = require("../../models/Clientes/clientesM");
 const { v4: uuidv4 } = require("uuid");
 
-// Crear Factura usando los valores calculados del frontend, sin sesiones
+// ===============================
+// CREAR FACTURA - VERSION MULTICATEGORIA
+// ===============================
+// Función para buscar producto en todas las colecciones
+const buscarProductoPorId = async (id) => {
+  return (
+    (await ProductosRepuestos.findById(id)) ||
+    (await ProductosAseo.findById(id)) ||
+    (await ProductosDotacion.findById(id))
+  );
+};
+
 exports.ingresarFactura = async (req, res) => {
   try {
     const { cabecera, cliente, productos, subtotal, descuento, iva, total } =
       req.body;
 
-    // Log de los productos recibidos
-    console.log("Recibido productos:", productos);
+    // --------------------------
+    // VALIDACIONES INICIALES
+    // --------------------------
+    if (!cabecera) {
+      return res
+        .status(400)
+        .json({ ok: false, msg: "Debe seleccionar una sucursal" });
+    }
 
-    // 1. Buscar/crear cliente
-    let clienteDoc = null;
+    if (!cliente) {
+      return res.status(400).json({ ok: false, msg: "Cliente es obligatorio" });
+    }
+
+    if (!productos || !Array.isArray(productos) || productos.length === 0) {
+      return res
+        .status(400)
+        .json({ ok: false, msg: "Debe enviar al menos un producto" });
+    }
+
+    if (subtotal == null || total == null) {
+      return res
+        .status(400)
+        .json({ ok: false, msg: "Subtotal y total son obligatorios" });
+    }
+
+    // --------------------------
+    // 1️⃣ Buscar o crear cliente
+    // --------------------------
+    let clienteDoc;
+
     if (typeof cliente === "string") {
+      // Cliente pasado por ID
       clienteDoc = await Clientes.findById(cliente);
       if (!clienteDoc) {
         return res
@@ -23,25 +62,58 @@ exports.ingresarFactura = async (req, res) => {
           .json({ ok: false, msg: "Cliente no encontrado" });
       }
     } else {
-      clienteDoc = await Clientes.findOneAndUpdate(
-        { nit: cliente.nit },
-        cliente,
-        { new: true, upsert: true }
-      );
+      const { nit, nombre, direccion, ciudad, telefono } = cliente;
+
+      // Validar campos obligatorios
+      if (!nit || !nombre || !direccion || !ciudad || !telefono) {
+        return res.status(400).json({
+          ok: false,
+          msg: "Todos los campos del cliente son obligatorios (NIT, nombre, dirección, ciudad, teléfono)",
+        });
+      }
+
+      // Crear o actualizar cliente automáticamente
+      try {
+        clienteDoc = await Clientes.findOneAndUpdate(
+          { nit },
+          { nit, nombre, direccion, ciudad, telefono },
+          { new: true, upsert: true, runValidators: false },
+        );
+      } catch (error) {
+        console.error("Error al crear o actualizar cliente:", error);
+        return res.status(500).json({
+          ok: false,
+          msg: "Error al ingresar o actualizar el cliente",
+          error: error.message,
+        });
+      }
     }
 
-    // 2. Crear detalles/cuerpo y descontar stock
+    // --------------------------
+    // 2️⃣ Procesar productos
+    // --------------------------
     let cuerposGuardados = [];
 
-    // Recorre todos los productos correctamente
     for (let i = 0; i < productos.length; i++) {
       const p = productos[i];
-      // Log para cada producto
-      console.log(`Procesando producto[${i}]`, p);
 
-      const producto = await Productos.findById(p.producto);
+      if (!p.producto) {
+        return res.status(400).json({
+          ok: false,
+          msg: `Producto inválido en posición ${i}`,
+        });
+      }
+
+      if (!p.cantidad || p.cantidad <= 0) {
+        return res.status(400).json({
+          ok: false,
+          msg: `Cantidad inválida para el producto ${p.descripcion || i}`,
+        });
+      }
+
+      // Buscar producto en todas las colecciones
+      const producto = await buscarProductoPorId(p.producto);
       if (!producto) {
-        console.log(`No se encontró producto con ID: ${p.producto}`);
         return res.status(400).json({
           ok: false,
           msg: `Producto no encontrado (${p.descripcion || p.producto})`,
@@ -49,12 +121,9 @@ exports.ingresarFactura = async (req, res) => {
       }
 
       if (producto.stock < p.cantidad) {
-        console.log(
-          `Stock insuficiente para ${producto.nombre} (${producto._id}): tiene ${producto.stock}, se intenta vender ${p.cantidad}`
-        );
         return res.status(400).json({
           ok: false,
-          msg: `Stock insuficiente para el producto ${producto.nombre}`,
+          msg: `Stock insuficiente para ${producto.nombre}`,
         });
       }
 
@@ -62,71 +131,85 @@ exports.ingresarFactura = async (req, res) => {
       producto.stock -= p.cantidad;
       await producto.save();
 
-      // Log después de guardar el producto
-      console.log(
-        `Stock actualizado para ${producto.nombre} (${producto._id}): ahora ${producto.stock}`
-      );
-
-      // Guardar detalle (usa los datos que vienen del frontend)
+      // Crear detalle en CuerpoFactura
       const detalle = await new CuerpoFactura({
-        producto: p.producto,
+        producto: producto._id,
         descripcionProducto: p.descripcion || producto.nombre,
+        referenciaProducto: producto.referencia || "",
         cantidadProducto: p.cantidad,
-        precioProducto: producto.precio,
+        precioProducto: p.precio || producto.precioVenta || producto.precio,
         descuentoProducto: p.descuento || 0,
-        iva: p.iva || 0, // ✔ coincide con el campo `iva` del schema
-        subtotal: p.subtotal,
-        total: p.total,
+        iva: p.iva || 0,
+        subtotal: p.subtotal || 0,
+        total: p.total || 0,
       }).save();
 
       cuerposGuardados.push(detalle._id);
     }
 
-    // 3. Crear factura principal usando los datos calculados en el frontend
-    const factura = await new Factura({
-      cabecera,
-      numeroFactura: uuidv4(),
-      cliente: clienteDoc._id,
-      cuerpo: cuerposGuardados,
-      subtotal,
-      descuento,
-      iva,
-      total,
-    }).save();
+    
+        // --------------------------
+    // 3️⃣ Crear factura
+    // --------------------------
+const factura = await new Factura({
+  cabecera,
+  numeroFactura: uuidv4(),
+  cliente: clienteDoc._id,
+  cuerpo: cuerposGuardados,
+  subtotal,
+  descuento: descuento || 0,
+  iva: iva || 0,
+  total,
 
-    // Log final de éxito
-    console.log(
-      `Factura creada con ${productos.length} productos. Factura: ${factura.numeroFactura}`
-    );
+  // 👤 USUARIO QUE CREÓ LA FACTURA
+  usuarioCreador: req.usuario.id,
+  nombreUsuario: req.usuario.nombre,
+  rolUsuario: req.usuario.rol
 
-    res.status(201).json({ ok: true, factura });
+}).save();
+const facturaPopulada = await Factura.findById(factura._id)
+  .select("cabecera cliente cuerpo subtotal descuento iva total numeroFactura nombreUsuario rolUsuario createdAt")
+  .populate("cabecera", "local nit direccion telefono email")
+  .populate("cliente", "nombre nit direccion ciudad telefono")
+  .populate("cuerpo");
+
+    return res.status(201).json({
+      ok: true,
+      msg: "Factura creada correctamente",
+      factura: facturaPopulada, // ✅ Ahora cuerpo tiene los objetos completos
+    });
   } catch (error) {
     console.error("Error en ingresarFactura:", error);
-    res.status(400).json({ ok: false, msg: error.message });
+    return res.status(500).json({
+      ok: false,
+      msg: "Error interno del servidor",
+      error: error.message,
+    });
   }
 };
 
-// Listar todas las facturas
+// ===============================
+// LISTAR TODAS
+// ===============================
 exports.listarFacturas = async (req, res) => {
   try {
     const facturas = await Factura.find({})
-      .sort({ createdAt: -1 })
       .populate("cabecera", "local nit direccion telefono email")
-      .populate("cliente", "_id nombre nit direccion ciudad telefono")
-      .populate({
-        path: "cuerpo",
-        populate: { path: "producto", select: "_id referencia precio" },
-      });
-    return res.status(200).json(facturas);
+      .populate("cliente", "nombre nit direccion ciudad telefono")
+      .populate("cuerpo");
+    return res.status(200).json({ ok: true, facturas });
   } catch (e) {
-    return res.status(500).json({ msg: "Error al listar facturas" });
+    return res.status(500).json({ ok: false, msg: "Error al listar facturas" });
   }
 };
 
-// Listar una factura específica
+// ===============================
+// LISTAR UNA
+// ===============================
 exports.listarFactura = async (req, res) => {
   try {
     const { id } = req.params;
+
     const factura = await Factura.findById(id)
       .populate("cabecera", "local nit direccion telefono email")
       .populate("cliente", "_id nombre nit direccion ciudad telefono")
@@ -134,43 +217,65 @@ exports.listarFactura = async (req, res) => {
         path: "cuerpo",
         populate: { path: "producto", select: "_id referencia precio" },
       });
+
     if (!factura) {
-      return res.status(404).json({ msg: "Factura no encontrada" });
+      return res.status(404).json({ ok: false, msg: "Factura no encontrada" });
     }
-    return res.status(200).json(factura);
+
+    return res.status(200).json({ ok: true, factura });
   } catch (e) {
-    return res.status(500).json({ msg: "Error al obtener la factura" });
+    return res
+      .status(500)
+      .json({ ok: false, msg: "Error al obtener la factura" });
   }
 };
 
-// Actualizar factura (solo cabecera y cliente, no productos ni stock)
+// ===============================
+// ACTUALIZAR
+// ===============================
 exports.actualizarFactura = async (req, res) => {
   try {
     const { id } = req.params;
     const { cabecera, cliente } = req.body;
+
     const factura = await Factura.findById(id);
+
     if (!factura) {
-      return res.status(404).json({ msg: "Factura no encontrada" });
+      return res.status(404).json({ ok: false, msg: "Factura no encontrada" });
     }
-    factura.cabecera = cabecera || factura.cabecera;
-    factura.cliente = cliente || factura.cliente;
+
+    if (cabecera) factura.cabecera = cabecera;
+    if (cliente) factura.cliente = cliente;
+
     await factura.save();
-    return res.status(200).json({ msg: "Factura actualizada correctamente" });
+
+    return res
+      .status(200)
+      .json({ ok: true, msg: "Factura actualizada correctamente" });
   } catch (e) {
-    return res.status(500).json({ msg: "Error al actualizar la factura" });
+    return res
+      .status(500)
+      .json({ ok: false, msg: "Error al actualizar la factura" });
   }
 };
 
-// Eliminar factura (y restablecer stock), sin sesión ni transacción
+// ===============================
+// ELIMINAR
+// ===============================
 exports.eliminarFactura = async (req, res) => {
   try {
     const { id } = req.params;
+
     const factura = await Factura.findById(id);
+
     if (!factura) {
-      return res.status(404).json({ msg: "Factura no encontrada" });
+      return res.status(404).json({ ok: false, msg: "Factura no encontrada" });
     }
-    // Restablecer stock de cada producto
-    const detalles = await CuerpoFactura.find({ _id: { $in: factura.cuerpo } });
+
+    const detalles = await CuerpoFactura.find({
+      _id: { $in: factura.cuerpo },
+    });
+
     for (const detalle of detalles) {
       const producto = await Productos.findById(detalle.producto);
       if (producto) {
@@ -178,13 +283,19 @@ exports.eliminarFactura = async (req, res) => {
         await producto.save();
       }
     }
-    // Eliminar detalles
-    await CuerpoFactura.deleteMany({ _id: { $in: factura.cuerpo } });
-    // Eliminar factura
+
+    await CuerpoFactura.deleteMany({
+      _id: { $in: factura.cuerpo },
+    });
+
     await factura.deleteOne();
 
-    return res.status(200).json({ msg: "Factura eliminada correctamente" });
+    return res
+      .status(200)
+      .json({ ok: true, msg: "Factura eliminada correctamente" });
   } catch (e) {
-    return res.status(500).json({ msg: "Error al eliminar la factura" });
+    return res
+      .status(500)
+      .json({ ok: false, msg: "Error al eliminar la factura" });
   }
 };

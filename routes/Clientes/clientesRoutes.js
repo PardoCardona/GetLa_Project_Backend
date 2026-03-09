@@ -3,18 +3,43 @@ const router = express.Router();
 const authMidd = require("../../middleware/authMidd");
 const clienteController = require("../../controllers/Clientes/clientesController");
 
-// Rutas
-router.get("/", authMidd, clienteController.listarClientes); // Lista todos los clientes
+// ==============================
+// LISTAR CLIENTES
+// ==============================
+router.get("/", authMidd, clienteController.listarClientes);
+
+// ==============================
+// BUSCAR CLIENTES POR NOMBRE O NIT
+// ==============================
+router.get("/buscar", authMidd, clienteController.buscarClientes);
+
+// ==============================
+// BUSCAR CLIENTE POR NIT
+// ==============================
 router.get(
   "/buscar/nit/:identificacion",
   authMidd,
   clienteController.listarClientePorIdentificacion
-); // Lista un cliente por NIT
-router.post("/", authMidd, clienteController.ingresarCliente); // Crear o actualizar un cliente
-router.put("/:id", authMidd, clienteController.actualizarCliente); // Editar cliente
-router.delete("/:id", authMidd, clienteController.eliminarCliente); // Eliminar cliente
+);
 
-// Ruta para incrementar el número de compras de un cliente
+// ==============================
+// CREAR CLIENTE
+// ==============================
+router.post("/", authMidd, clienteController.ingresarCliente);
+
+// ==============================
+// ACTUALIZAR CLIENTE
+// ==============================
+router.put("/:id", authMidd, clienteController.actualizarCliente);
+
+// ==============================
+// ELIMINAR CLIENTE
+// ==============================
+router.delete("/:id", authMidd, clienteController.eliminarCliente);
+
+// ==============================
+// INCREMENTAR COMPRAS
+// ==============================
 router.put(
   "/incrementar-compra/:id",
   authMidd,

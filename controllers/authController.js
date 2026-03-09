@@ -25,8 +25,12 @@ exports.autenticarUsuario = async (req, res) => {
 
     // Si todo es correcto: crear y firmar un token
     const payload = {
-      usuario: { id: usuario.id, rol: usuario.rol }, // Agregar rol al payload
-    };
+  usuario: {
+    id: usuario.id,
+    nombre: usuario.nombre,
+    rol: usuario.rol,
+  },
+};
     //res.json(payload);
     jwt.sign(
       payload,

@@ -83,8 +83,13 @@ exports.usuarioAutenticado = async (req, res) => {
     // 2) Crear token crudo (se envía por email)
     const resetTokenRaw = crypto.randomBytes(32).toString("hex");
 
+    console.log("TOKEN RAW GENERADO:", resetTokenRaw);
+
+
     // 3) Guardar el HASH del token en BD (no el crudo)
     const resetTokenHashed = crypto.createHash("sha256").update(resetTokenRaw).digest("hex");
+
+    console.log("TOKEN HASH GUARDADO:", resetTokenHashed);   
 
     usuario.resetPasswordToken = resetTokenHashed;
     usuario.resetPasswordExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hora
@@ -108,6 +113,9 @@ exports.resetPassword = async (req, res) => {
     const { token } = req.params;       // token crudo del link
     const { password } = req.body;      // nueva contraseña
 
+    console.log("TOKEN RECIBIDO DEL FRONT:", token);
+
+
     if (!password || password.length < 5) {
       return res.status(400).json({ msg: "La contraseña debe tener al menos 5 caracteres" });
     }
@@ -115,11 +123,14 @@ exports.resetPassword = async (req, res) => {
     // 1) Hashear el token crudo para compararlo con el de la BD
     const tokenHashed = crypto.createHash("sha256").update(token).digest("hex");
 
+    console.log("TOKEN HASH CALCULADO:", tokenHashed);
+
     // 2) Buscar usuario con token válido y no expirado
     const usuario = await Usuario.findOne({
       resetPasswordToken: tokenHashed,
       resetPasswordExpires: { $gt: new Date() },
     });
+    console.log("USUARIO ENCONTRADO:", usuario);
 
     if (!usuario) {
       return res.status(400).json({ msg: "Token inválido o expirado" });

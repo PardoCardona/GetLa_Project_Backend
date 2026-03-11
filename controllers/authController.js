@@ -110,7 +110,8 @@ exports.usuarioAutenticado = async (req, res) => {
 
 exports.resetPassword = async (req, res) => {
   try {
-    const token = req.params.token?.trim().replace(/[^a-f0-9]/gi, "");
+    console.log("TOKEN RECIBIDO DEL FRONT:", req.params.token);
+    const token = req.params.token?.trim();
     const { password } = req.body;      // nueva contraseña
 
     console.log("TOKEN RECIBIDO DEL FRONT:", token);

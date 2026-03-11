@@ -130,7 +130,11 @@ exports.resetPassword = async (req, res) => {
       resetPasswordToken: tokenHashed,
       resetPasswordExpires: { $gt: new Date() },
     });
-    console.log("USUARIO ENCONTRADO:", usuario);
+    console.log("Hora actual servidor:", new Date());
+console.log("Token recibido:", token);
+console.log("Token hash:", tokenHashed);
+console.log("Usuario encontrado:", usuario);
+console.log("Expira:", usuario?.resetPasswordExpires);
 
     if (!usuario) {
       return res.status(400).json({ msg: "Token inválido o expirado" });

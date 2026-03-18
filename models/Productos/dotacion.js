@@ -3,7 +3,7 @@ const mongoose = require("mongoose");
 const ProductosDotacionSchema = mongoose.Schema({
   referencia: { type: String, required: true, trim: true },
   nombre: { type: String, required: true, trim: true },
-  //talla: { type: String, required: true, trim: true },
+  talla: { type: String, required: true, trim: true },
   descripcion: { type: String, trim: true },
   stock: { type: Number, default: 0 },
   precio: { type: Number, default: 0 },

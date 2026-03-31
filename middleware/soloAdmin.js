@@ -5,16 +5,25 @@ const soloAdmin = (req, res, next) => {
   }
 
   // 2. Normalizar rol
-  const rol = req.usuario.rol.toLowerCase();
+  const rol = (req.usuario.rol || "").toLowerCase();
 
-  // 3. Permitir cualquier admin (admin, adminrep, adminmant, etc.)
-  if (!rol.startsWith("admin")) {
-    return res
-      .status(403)
-      .json({ msg: "Acceso denegado. Solo administradores." });
+  // 3. Definir roles con permisos de administrador REAL
+  const rolesAdmin = [
+    "admin",
+    "adminrep",
+    "admindot",
+    "adminlimp",
+    "adminmant"
+  ];
+
+  // 4. Validar si el rol tiene permisos de admin
+  if (!rolesAdmin.includes(rol)) {
+    return res.status(403).json({
+      msg: "Acceso denegado. Solo administradores.",
+    });
   }
 
-  // 4. Todo OK
+  // 5. Acceso permitido
   next();
 };
 

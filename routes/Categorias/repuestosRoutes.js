@@ -8,7 +8,6 @@ const categoriasRepuestosController = require("../../controllers/Categorias/repu
 router.get(
   "/",
   authMidd,
-  soloAdmin,
   categoriasRepuestosController.obtenerCategoriaRepuestos
 );
 

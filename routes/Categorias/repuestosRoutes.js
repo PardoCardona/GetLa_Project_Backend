@@ -14,7 +14,6 @@ router.get(
 router.get(
   "/:id",
   authMidd,
-  soloAdmin,
   categoriasRepuestosController.obtenerCategoriaRepuestosId
 );
 

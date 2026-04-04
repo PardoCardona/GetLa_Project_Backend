@@ -8,6 +8,12 @@ const ordenTrabajoSchema = new mongoose.Schema(
       required: true,
     },
 
+    estado: {
+      type: String,
+      enum: ["abierta", "en_proceso", "finalizada", "anulada"],
+      default: "abierta",
+    },
+
     checklist: [
       {
         item: {
@@ -27,14 +33,44 @@ const ordenTrabajoSchema = new mongoose.Schema(
         productoId: {
           type: mongoose.Schema.Types.ObjectId,
           ref: "ProductosRepuestos",
+          required: true,
+        },
+        nombreProducto: {
+          type: String,
+          trim: true,
+        },
+        referenciaProducto: {
+          type: String,
+          trim: true,
         },
         cantidad: {
           type: Number,
+          required: true,
+          min: 1,
           default: 1,
         },
         precio: {
           type: Number,
+          required: true,
+          min: 0,
           default: 0,
+        },
+        subtotal: {
+          type: Number,
+          min: 0,
+          default: 0,
+        },
+        entregadoPor: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "Usuarios",
+        },
+        recibidoPor: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "Usuarios",
+        },
+        fechaEntrega: {
+          type: Date,
+          default: Date.now,
         },
       },
     ],

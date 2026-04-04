@@ -1,5 +1,42 @@
 const OrdenTrabajo = require("../../models/Mantenimiento/ordenTrabajoModel");
 const Mantenimiento = require("../../models/Mantenimiento/mantenimientoModel");
+const ProductosRepuestos = require("../../models/Productos/repuestos");
+
+const procesarRepuestos = async (repuestos = [], usuarioId) => {
+  const repuestosProcesados = [];
+
+  for (const rep of repuestos) {
+    if (!rep.productoId) {
+      throw new Error("Cada repuesto debe tener productoId");
+    }
+
+    if (!rep.cantidad || rep.cantidad <= 0) {
+      throw new Error("La cantidad de cada repuesto debe ser mayor a 0");
+    }
+
+    const producto = await ProductosRepuestos.findById(rep.productoId);
+
+    if (!producto) {
+      throw new Error(`El repuesto con id ${rep.productoId} no existe`);
+    }
+
+    const precioUnitario = rep.precio ?? producto.precio ?? 0;
+
+    repuestosProcesados.push({
+      productoId: producto._id,
+      nombreProducto: producto.nombre || "",
+      referenciaProducto: producto.referencia || "",
+      cantidad: rep.cantidad,
+      precio: precioUnitario,
+      subtotal: Number(precioUnitario) * Number(rep.cantidad),
+      entregadoPor: usuarioId || null,
+      recibidoPor: rep.recibidoPor || null,
+      fechaEntrega: rep.fechaEntrega || new Date(),
+    });
+  }
+
+  return repuestosProcesados;
+};
 
 exports.crearOrden = async (req, res) => {
   try {
@@ -9,10 +46,8 @@ exports.crearOrden = async (req, res) => {
       repuestos,
       observaciones,
       firmaTecnico,
+      estado,
     } = req.body;
-
-    console.log("BODY RECIBIDO:", req.body);
-    console.log("REQ.USUARIO:", req.usuario);
 
     if (!mantenimientoId) {
       return res.status(400).json({ msg: "mantenimientoId es obligatorio" });
@@ -27,11 +62,7 @@ exports.crearOrden = async (req, res) => {
       queryMantenimiento.empresaId = req.usuario.empresaId;
     }
 
-    console.log("QUERY MANTENIMIENTO:", queryMantenimiento);
-
     const mantenimiento = await Mantenimiento.findOne(queryMantenimiento);
-
-    console.log("MANTENIMIENTO ENCONTRADO:", mantenimiento);
 
     if (!mantenimiento) {
       return res.status(404).json({ msg: "El mantenimiento no existe" });
@@ -49,10 +80,16 @@ exports.crearOrden = async (req, res) => {
       });
     }
 
+    const repuestosProcesados = await procesarRepuestos(
+      repuestos || [],
+      req.usuario?.id
+    );
+
     const orden = new OrdenTrabajo({
       mantenimientoId,
+      estado: estado || "abierta",
       checklist: checklist || [],
-      repuestos: repuestos || [],
+      repuestos: repuestosProcesados,
       observaciones,
       firmaTecnico,
       empresaId: mantenimiento.empresaId,
@@ -80,8 +117,10 @@ exports.obtenerOrdenPorMantenimiento = async (req, res) => {
     }
 
     const orden = await OrdenTrabajo.findOne(query)
+      .populate("mantenimientoId")
       .populate("repuestos.productoId")
-      .populate("mantenimientoId");
+      .populate("repuestos.entregadoPor", "nombre email rol")
+      .populate("repuestos.recibidoPor", "nombre email rol");
 
     if (!orden) {
       return res.status(404).json({ msg: "Orden no encontrada" });
@@ -105,19 +144,45 @@ exports.actualizarOrden = async (req, res) => {
       query.empresaId = req.usuario.empresaId;
     }
 
-    const datosActualizar = { ...req.body };
-    delete datosActualizar.empresaId;
-    delete datosActualizar.mantenimientoId;
+    const ordenActual = await OrdenTrabajo.findOne(query);
 
-    const orden = await OrdenTrabajo.findOneAndUpdate(
-      query,
-      datosActualizar,
-      { new: true, runValidators: true }
-    );
-
-    if (!orden) {
+    if (!ordenActual) {
       return res.status(404).json({ msg: "Orden no encontrada" });
     }
+
+    const datosActualizar = {};
+
+    if (req.body.checklist) {
+      datosActualizar.checklist = req.body.checklist;
+    }
+
+    if (req.body.observaciones !== undefined) {
+      datosActualizar.observaciones = req.body.observaciones;
+    }
+
+    if (req.body.firmaTecnico !== undefined) {
+      datosActualizar.firmaTecnico = req.body.firmaTecnico;
+    }
+
+    if (req.body.estado) {
+      datosActualizar.estado = req.body.estado;
+    }
+
+    if (req.body.repuestos) {
+      datosActualizar.repuestos = await procesarRepuestos(
+        req.body.repuestos,
+        req.usuario?.id
+      );
+    }
+
+    const orden = await OrdenTrabajo.findOneAndUpdate(query, datosActualizar, {
+      new: true,
+      runValidators: true,
+    })
+      .populate("mantenimientoId")
+      .populate("repuestos.productoId")
+      .populate("repuestos.entregadoPor", "nombre email rol")
+      .populate("repuestos.recibidoPor", "nombre email rol");
 
     res.json(orden);
   } catch (error) {
@@ -139,7 +204,10 @@ exports.eliminarOrden = async (req, res) => {
 
     const orden = await OrdenTrabajo.findOneAndUpdate(
       query,
-      { isActive: false },
+      {
+        isActive: false,
+        estado: "anulada",
+      },
       { new: true }
     );
 

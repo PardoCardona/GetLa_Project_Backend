@@ -3,10 +3,18 @@ const mongoose = require("mongoose");
 
 const busSchema = new mongoose.Schema(
   {
+    imagen: {
+      type: String,
+      required: true,
+      trim: true,
+      unique: true,
+    },
+
     numeroInterno: {
       type: String,
       required: true,
       trim: true,
+      unique: true,
     },
     placa: {
       type: String,
@@ -35,7 +43,7 @@ const busSchema = new mongoose.Schema(
       default: true,
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 module.exports = mongoose.model("Bus", busSchema);

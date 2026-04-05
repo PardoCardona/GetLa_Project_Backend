@@ -29,6 +29,7 @@ exports.autenticarUsuario = async (req, res) => {
     id: usuario.id,
     nombre: usuario.nombre,
     rol: usuario.rol,
+    empresaId: usuario.empresaId,
   },
 };
     //res.json(payload);

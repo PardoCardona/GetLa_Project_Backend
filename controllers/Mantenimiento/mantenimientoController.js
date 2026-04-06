@@ -42,7 +42,7 @@ exports.crearMantenimiento = async (req, res) => {
       kilometraje: kilometraje || 0,
       descripcion,
       tecnicoResponsable,
-      empresaId: bus.empresaId,
+      //empresaId: bus.empresaId,
       isActive: true,
     });
 
@@ -67,9 +67,7 @@ exports.obtenerMantenimientos = async (req, res) => {
       isActive: true,
     };
 
-    if (req.usuario?.empresaId) {
-      query.empresaId = req.usuario.empresaId;
-    }
+    
 
     if (busId) {
       query.busId = busId;
@@ -93,10 +91,7 @@ exports.obtenerMantenimientoPorId = async (req, res) => {
       isActive: true,
     };
 
-    if (req.usuario?.empresaId) {
-      query.empresaId = req.usuario.empresaId;
-    }
-
+    
     const mantenimiento = await Mantenimiento.findOne(query).populate("busId");
 
     if (!mantenimiento) {
@@ -119,10 +114,7 @@ exports.actualizarMantenimiento = async (req, res) => {
       isActive: true,
     };
 
-    if (req.usuario?.empresaId) {
-      query.empresaId = req.usuario.empresaId;
-    }
-
+    
     const mantenimiento = await Mantenimiento.findOneAndUpdate(
       query,
       req.body,
@@ -155,10 +147,7 @@ exports.eliminarMantenimiento = async (req, res) => {
       isActive: true,
     };
 
-    if (req.usuario?.empresaId) {
-      query.empresaId = req.usuario.empresaId;
-    }
-
+    
     const mantenimiento = await Mantenimiento.findOneAndUpdate(
       query,
       {

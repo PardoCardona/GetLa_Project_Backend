@@ -32,11 +32,7 @@ const busSchema = new mongoose.Schema(
       default: "activo",
     },
 
-    empresaId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Empresa",
-      required: true,
-    },
+    
 
     isActive: {
       type: Boolean,

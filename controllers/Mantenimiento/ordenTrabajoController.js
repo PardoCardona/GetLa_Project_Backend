@@ -58,10 +58,7 @@ exports.crearOrden = async (req, res) => {
       isActive: true,
     };
 
-    if (req.usuario?.empresaId) {
-      queryMantenimiento.empresaId = req.usuario.empresaId;
-    }
-
+    
     const mantenimiento = await Mantenimiento.findOne(queryMantenimiento);
 
     if (!mantenimiento) {
@@ -70,7 +67,7 @@ exports.crearOrden = async (req, res) => {
 
     const ordenExistente = await OrdenTrabajo.findOne({
       mantenimientoId,
-      empresaId: mantenimiento.empresaId,
+      //empresaId: mantenimiento.empresaId,
       isActive: true,
     });
 
@@ -92,7 +89,7 @@ exports.crearOrden = async (req, res) => {
       repuestos: repuestosProcesados,
       observaciones,
       firmaTecnico,
-      empresaId: mantenimiento.empresaId,
+      //empresaId: mantenimiento.empresaId,
       isActive: true,
     });
 
@@ -112,9 +109,7 @@ exports.obtenerOrdenPorMantenimiento = async (req, res) => {
       isActive: true,
     };
 
-    if (req.usuario?.empresaId) {
-      query.empresaId = req.usuario.empresaId;
-    }
+    
 
     const orden = await OrdenTrabajo.findOne(query)
       .populate("mantenimientoId")
@@ -140,9 +135,7 @@ exports.actualizarOrden = async (req, res) => {
       isActive: true,
     };
 
-    if (req.usuario?.empresaId) {
-      query.empresaId = req.usuario.empresaId;
-    }
+    
 
     const ordenActual = await OrdenTrabajo.findOne(query);
 
@@ -198,9 +191,7 @@ exports.eliminarOrden = async (req, res) => {
       isActive: true,
     };
 
-    if (req.usuario?.empresaId) {
-      query.empresaId = req.usuario.empresaId;
-    }
+   
 
     const orden = await OrdenTrabajo.findOneAndUpdate(
       query,

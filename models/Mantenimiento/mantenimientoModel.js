@@ -44,11 +44,7 @@ const mantenimientoSchema = new mongoose.Schema(
       trim: true,
     },
 
-    empresaId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Empresa",
-      required: true,
-    },
+   
 
     isActive: {
       type: Boolean,

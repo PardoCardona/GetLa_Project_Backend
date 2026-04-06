@@ -85,12 +85,7 @@ const ordenTrabajoSchema = new mongoose.Schema(
       trim: true,
     },
 
-    empresaId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Empresa",
-      required: true,
-    },
-
+   
     isActive: {
       type: Boolean,
       default: true,

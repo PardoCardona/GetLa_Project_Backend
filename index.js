@@ -20,7 +20,7 @@ app.use(cors());
 app.use("/api/usuarios", require("./routes/usuarioRoutes"));
 app.use("/api/auth", require("./routes/auth"));
 app.use("/api/repuestos", require("./routes/Categorias/repuestosRoutes"));
-app.use("/api/mantencion", require("./routes/Categorias/mantencionRoutes"));
+//app.use("/api/mantencion", require("./routes/Categorias/mantencionRoutes"));
 app.use("/api/dotacion", require("./routes/Categorias/dotacionRoutes"));
 app.use("/api/aseo", require("./routes/Categorias/aseoRoutes.js"));
 app.use("/api/productos-aseo", require("./routes/Productos/aseoRoutes.js"));
@@ -29,6 +29,10 @@ app.use("/api/productos-repuestos", require("./routes/Productos/repuestosRoutes.
 app.use("/api/cabecera", require("./routes/Cabeceras/cabeceraRoutes.js"));
 app.use("/api/clientes", require("./routes/Clientes/clientesRoutes.js"));
 app.use("/api/factura", require("./routes/Facturas/facturasRoutes.js"));
+// Mantención
+app.use("/api/flota", require("./routes/Flota/flotaRoutes.js"));
+app.use("/api/mantencionBus", require("./routes/Mantencion/mantenimientoRoutes.js"));
+app.use("/api/ordenTrabajo", require("./routes/ordenTrabajo/ordenTrabajoRoutes.js"));
 
 // Conectar DB
 conectarDB();

@@ -28,7 +28,7 @@ const busSchema = new mongoose.Schema(
 
     estado: {
       type: String,
-      enum: ["activo", "en_taller", "fuera_servicio"],
+      enum: ["activo", "en_taller"],
       default: "activo",
     },
 

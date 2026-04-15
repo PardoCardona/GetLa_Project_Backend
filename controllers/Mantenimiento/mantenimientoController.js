@@ -67,8 +67,6 @@ exports.obtenerMantenimientos = async (req, res) => {
       isActive: true,
     };
 
-    
-
     if (busId) {
       query.busId = busId;
     }
@@ -91,7 +89,6 @@ exports.obtenerMantenimientoPorId = async (req, res) => {
       isActive: true,
     };
 
-    
     const mantenimiento = await Mantenimiento.findOne(query).populate("busId");
 
     if (!mantenimiento) {
@@ -114,11 +111,10 @@ exports.actualizarMantenimiento = async (req, res) => {
       isActive: true,
     };
 
-    
     const mantenimiento = await Mantenimiento.findOneAndUpdate(
       query,
       req.body,
-      { new: true, runValidators: true }
+      { new: true, runValidators: true },
     );
 
     if (!mantenimiento) {
@@ -127,11 +123,11 @@ exports.actualizarMantenimiento = async (req, res) => {
       });
     }
 
-    if (req.body.estado === "cerrado" || req.body.estado === "anulado") {
-      await Bus.findByIdAndUpdate(mantenimiento.busId, {
-        estado: "activo",
-      });
-    }
+    //if (req.body.estado === "cerrado" || req.body.estado === "anulado") {
+    //await Bus.findByIdAndUpdate(mantenimiento.busId, {
+    //estado: "activo",
+    //});
+    //}
 
     res.json(mantenimiento);
   } catch (error) {
@@ -147,14 +143,13 @@ exports.eliminarMantenimiento = async (req, res) => {
       isActive: true,
     };
 
-    
     const mantenimiento = await Mantenimiento.findOneAndUpdate(
       query,
       {
         isActive: false,
         estado: "anulado",
       },
-      { new: true }
+      { new: true },
     );
 
     if (!mantenimiento) {
@@ -162,6 +157,7 @@ exports.eliminarMantenimiento = async (req, res) => {
         msg: "Mantenimiento no encontrado",
       });
     }
+    console.log("ID mantenimiento:", ordenActual.mantenimientoId);
 
     await Bus.findByIdAndUpdate(mantenimiento.busId, {
       estado: "activo",

@@ -6,17 +6,17 @@ exports.crearBus = async (req, res) => {
     await bus.save();
     res.status(201).json(bus);
   } catch (error) {
-    //console.error("ERROR CREAR BUS:", error);
+    console.error("ERROR CREAR BUS:", error);
     res.status(500).json({ error: error.message });
   }
 };
 
 exports.obtenerBuses = async (req, res) => {
   try {
-    const buses = await Bus.find({ isActive: true }).sort({ createdAt: -1 });
+    const buses = await Bus.find().sort({ createdAt: -1 });
     res.json(buses);
   } catch (error) {
-    //console.error("ERROR OBTENER BUSES:", error);
+    console.error("ERROR OBTENER BUSES:", error);
     res.status(500).json({ error: error.message });
   }
 };
@@ -25,13 +25,13 @@ exports.obtenerBusPorId = async (req, res) => {
   try {
     const bus = await Bus.findById(req.params.id);
 
-    if (!bus || !bus.isActive) {
+    if (!bus) {
       return res.status(404).json({ msg: "Bus no encontrado" });
     }
 
     res.json(bus);
   } catch (error) {
-    //console.error("ERROR OBTENER BUS POR ID:", error);
+    console.error("ERROR OBTENER BUS POR ID:", error);
     res.status(500).json({ error: error.message });
   }
 };
@@ -49,18 +49,15 @@ exports.actualizarBus = async (req, res) => {
 
     res.json(bus);
   } catch (error) {
-    //console.error("ERROR ACTUALIZAR BUS:", error);
+    console.error("ERROR ACTUALIZAR BUS:", error);
     res.status(500).json({ error: error.message });
   }
 };
 
+// ── HARD DELETE: elimina el documento definitivamente ──────────────────────
 exports.eliminarBus = async (req, res) => {
   try {
-    const bus = await Bus.findByIdAndUpdate(
-      req.params.id,
-      { isActive: false },
-      { new: true }
-    );
+    const bus = await Bus.findByIdAndDelete(req.params.id);
 
     if (!bus) {
       return res.status(404).json({ msg: "Bus no encontrado" });
@@ -68,7 +65,7 @@ exports.eliminarBus = async (req, res) => {
 
     res.json({ msg: "Bus eliminado correctamente" });
   } catch (error) {
-    //console.error("ERROR ELIMINAR BUS:", error);
+    console.error("ERROR ELIMINAR BUS:", error);
     res.status(500).json({ error: error.message });
   }
 };

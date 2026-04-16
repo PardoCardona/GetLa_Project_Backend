@@ -7,7 +7,6 @@ const busSchema = new mongoose.Schema(
       type: String,
       required: true,
       trim: true,
-      
     },
 
     numeroInterno: {
@@ -31,8 +30,6 @@ const busSchema = new mongoose.Schema(
       enum: ["activo", "en_taller"],
       default: "activo",
     },
-
-    
 
     isActive: {
       type: Boolean,

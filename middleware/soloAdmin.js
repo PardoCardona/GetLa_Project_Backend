@@ -13,7 +13,8 @@ const soloAdmin = (req, res, next) => {
     "adminrep",
     "admindot",
     "adminlimp",
-    "adminmant"
+    "adminmant",
+    "adminregular"
   ];
 
   // 4. Validar si el rol tiene permisos de admin
@@ -22,7 +23,7 @@ const soloAdmin = (req, res, next) => {
       msg: "Acceso denegado. Solo administradores.",
     });
   }
-
+console.log("va el rol",req.usuario.rol);
   // 5. Acceso permitido
   next();
 };

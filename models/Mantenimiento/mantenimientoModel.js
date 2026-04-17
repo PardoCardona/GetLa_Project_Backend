@@ -44,14 +44,12 @@ const mantenimientoSchema = new mongoose.Schema(
       trim: true,
     },
 
-   
-
     isActive: {
       type: Boolean,
       default: true,
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 module.exports = mongoose.model("Mantenimiento", mantenimientoSchema);

@@ -1,7 +1,12 @@
+const mongoose = require("mongoose");
 const OrdenTrabajo = require("../../models/Mantenimiento/ordenTrabajoModel");
 const Mantenimiento = require("../../models/Mantenimiento/mantenimientoModel");
 const ProductosRepuestos = require("../../models/Productos/repuestos");
+const Bus = require("../../models/Flota/busModel");
 
+// ─────────────────────────────────────────
+// PROCESAR REPUESTOS
+// ─────────────────────────────────────────
 const procesarRepuestos = async (repuestos = [], usuarioId) => {
   const repuestosProcesados = [];
 
@@ -38,6 +43,9 @@ const procesarRepuestos = async (repuestos = [], usuarioId) => {
   return repuestosProcesados;
 };
 
+// ─────────────────────────────────────────
+// CREAR ORDEN
+// ─────────────────────────────────────────
 exports.crearOrden = async (req, res) => {
   try {
     const {
@@ -53,13 +61,10 @@ exports.crearOrden = async (req, res) => {
       return res.status(400).json({ msg: "mantenimientoId es obligatorio" });
     }
 
-    const queryMantenimiento = {
+    const mantenimiento = await Mantenimiento.findOne({
       _id: mantenimientoId,
       isActive: true,
-    };
-
-    
-    const mantenimiento = await Mantenimiento.findOne(queryMantenimiento);
+    });
 
     if (!mantenimiento) {
       return res.status(404).json({ msg: "El mantenimiento no existe" });
@@ -67,7 +72,6 @@ exports.crearOrden = async (req, res) => {
 
     const ordenExistente = await OrdenTrabajo.findOne({
       mantenimientoId,
-      //empresaId: mantenimiento.empresaId,
       isActive: true,
     });
 
@@ -79,7 +83,7 @@ exports.crearOrden = async (req, res) => {
 
     const repuestosProcesados = await procesarRepuestos(
       repuestos || [],
-      req.usuario?.id
+      req.usuario?.id,
     );
 
     const orden = new OrdenTrabajo({
@@ -89,7 +93,6 @@ exports.crearOrden = async (req, res) => {
       repuestos: repuestosProcesados,
       observaciones,
       firmaTecnico,
-      //empresaId: mantenimiento.empresaId,
       isActive: true,
     });
 
@@ -102,16 +105,15 @@ exports.crearOrden = async (req, res) => {
   }
 };
 
+// ─────────────────────────────────────────
+// OBTENER ORDEN
+// ─────────────────────────────────────────
 exports.obtenerOrdenPorMantenimiento = async (req, res) => {
   try {
-    const query = {
+    const orden = await OrdenTrabajo.findOne({
       mantenimientoId: req.params.mantenimientoId,
       isActive: true,
-    };
-
-    
-
-    const orden = await OrdenTrabajo.findOne(query)
+    })
       .populate("mantenimientoId")
       .populate("repuestos.productoId")
       .populate("repuestos.entregadoPor", "nombre email rol")
@@ -128,19 +130,24 @@ exports.obtenerOrdenPorMantenimiento = async (req, res) => {
   }
 };
 
+// ─────────────────────────────────────────
+// ACTUALIZAR ORDEN
+// ─────────────────────────────────────────
 exports.actualizarOrden = async (req, res) => {
   try {
-    const query = {
+    const ordenActual = await OrdenTrabajo.findOne({
       _id: req.params.id,
       isActive: true,
-    };
-
-    
-
-    const ordenActual = await OrdenTrabajo.findOne(query);
+    });
 
     if (!ordenActual) {
       return res.status(404).json({ msg: "Orden no encontrada" });
+    }
+
+    if (ordenActual.estado === "finalizada") {
+      return res.status(400).json({
+        msg: "No se puede modificar una orden finalizada",
+      });
     }
 
     const datosActualizar = {};
@@ -164,14 +171,15 @@ exports.actualizarOrden = async (req, res) => {
     if (req.body.repuestos) {
       datosActualizar.repuestos = await procesarRepuestos(
         req.body.repuestos,
-        req.usuario?.id
+        req.usuario?.id,
       );
     }
 
-    const orden = await OrdenTrabajo.findOneAndUpdate(query, datosActualizar, {
-      new: true,
-      runValidators: true,
-    })
+    const orden = await OrdenTrabajo.findOneAndUpdate(
+      { _id: req.params.id, isActive: true },
+      datosActualizar,
+      { new: true, runValidators: true },
+    )
       .populate("mantenimientoId")
       .populate("repuestos.productoId")
       .populate("repuestos.entregadoPor", "nombre email rol")
@@ -184,22 +192,70 @@ exports.actualizarOrden = async (req, res) => {
   }
 };
 
+// ─────────────────────────────────────────
+// 🔥 CERRAR ORDEN (PRO)
+// ─────────────────────────────────────────
+exports.cerrarOrden = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const orden = await OrdenTrabajo.findById(id);
+
+    if (!orden) {
+      return res.status(404).json({ msg: "Orden no encontrada" });
+    }
+
+    // 1️⃣ Cerrar orden
+    orden.estado = "finalizada";
+    await orden.save();
+
+    // 2️⃣ Obtener mantenimiento
+    const mantenimiento = await Mantenimiento.findById(orden.mantenimientoId);
+
+    if (!mantenimiento) {
+      return res.status(404).json({ msg: "Mantenimiento no encontrado" });
+    }
+
+    // 3️⃣ Cerrar mantenimiento
+    mantenimiento.estado = "cerrado";
+    mantenimiento.fechaSalida = new Date();
+    await mantenimiento.save();
+
+    // 4️⃣ Activar bus (FIX IMPORTANTE)
+    const busId = mantenimiento.busId?._id || mantenimiento.busId;
+
+    if (busId) {
+      await Bus.findByIdAndUpdate(busId, {
+        estado: "activo",
+      });
+    }
+
+    // DEBUG (puedes borrar después)
+    console.log("✔ Orden cerrada:", orden._id);
+    console.log("✔ Mantenimiento cerrado:", mantenimiento._id);
+    console.log("✔ Bus activado:", busId);
+
+    res.json({
+      msg: "Orden cerrada, mantenimiento cerrado y bus activado",
+    });
+  } catch (error) {
+    console.error("ERROR CERRAR ORDEN:", error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// ─────────────────────────────────────────
+// ELIMINAR ORDEN
+// ─────────────────────────────────────────
 exports.eliminarOrden = async (req, res) => {
   try {
-    const query = {
-      _id: req.params.id,
-      isActive: true,
-    };
-
-   
-
     const orden = await OrdenTrabajo.findOneAndUpdate(
-      query,
+      { _id: req.params.id, isActive: true },
       {
         isActive: false,
         estado: "anulada",
       },
-      { new: true }
+      { new: true },
     );
 
     if (!orden) {

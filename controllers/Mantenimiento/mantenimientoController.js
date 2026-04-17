@@ -1,6 +1,9 @@
 const Mantenimiento = require("../../models/Mantenimiento/mantenimientoModel");
 const Bus = require("../../models/Flota/busModel");
 
+// ─────────────────────────────────────────────────────────────────
+// CREAR MANTENIMIENTO
+// ─────────────────────────────────────────────────────────────────
 exports.crearMantenimiento = async (req, res) => {
   try {
     const {
@@ -13,26 +16,20 @@ exports.crearMantenimiento = async (req, res) => {
     } = req.body;
 
     if (!busId || !tipo) {
-      return res.status(400).json({
-        msg: "busId y tipo son obligatorios",
-      });
+      return res.status(400).json({ msg: "busId y tipo son obligatorios" });
     }
 
-    const bus = await Bus.findOne({
-      _id: busId,
-      isActive: true,
-    });
+    // FIX: ya no filtramos por isActive (se eliminó el soft delete en buses)
+    const bus = await Bus.findById(busId);
 
     if (!bus) {
-      return res.status(404).json({
-        msg: "El bus no existe",
-      });
+      return res.status(404).json({ msg: "El bus no existe" });
     }
 
     if (bus.estado === "en_taller") {
-      return res.status(400).json({
-        msg: "El bus ya tiene un mantenimiento en curso",
-      });
+      return res
+        .status(400)
+        .json({ msg: "El bus ya tiene un mantenimiento en curso" });
     }
 
     const mantenimiento = new Mantenimiento({
@@ -42,15 +39,13 @@ exports.crearMantenimiento = async (req, res) => {
       kilometraje: kilometraje || 0,
       descripcion,
       tecnicoResponsable,
-      //empresaId: bus.empresaId,
       isActive: true,
     });
 
     await mantenimiento.save();
 
-    await Bus.findByIdAndUpdate(busId, {
-      estado: "en_taller",
-    });
+    // Cambiar estado del bus a en_taller
+    await Bus.findByIdAndUpdate(busId, { estado: "en_taller" });
 
     res.status(201).json(mantenimiento);
   } catch (error) {
@@ -59,17 +54,15 @@ exports.crearMantenimiento = async (req, res) => {
   }
 };
 
+// ─────────────────────────────────────────────────────────────────
+// OBTENER MANTENIMIENTOS (todos o filtrados por busId)
+// ─────────────────────────────────────────────────────────────────
 exports.obtenerMantenimientos = async (req, res) => {
   try {
     const { busId } = req.query;
 
-    const query = {
-      isActive: true,
-    };
-
-    if (busId) {
-      query.busId = busId;
-    }
+    const query = { isActive: true };
+    if (busId) query.busId = busId;
 
     const mantenimientos = await Mantenimiento.find(query)
       .populate("busId")
@@ -82,19 +75,18 @@ exports.obtenerMantenimientos = async (req, res) => {
   }
 };
 
+// ─────────────────────────────────────────────────────────────────
+// OBTENER MANTENIMIENTO POR ID
+// ─────────────────────────────────────────────────────────────────
 exports.obtenerMantenimientoPorId = async (req, res) => {
   try {
-    const query = {
+    const mantenimiento = await Mantenimiento.findOne({
       _id: req.params.id,
       isActive: true,
-    };
-
-    const mantenimiento = await Mantenimiento.findOne(query).populate("busId");
+    }).populate("busId");
 
     if (!mantenimiento) {
-      return res.status(404).json({
-        msg: "Mantenimiento no encontrado",
-      });
+      return res.status(404).json({ msg: "Mantenimiento no encontrado" });
     }
 
     res.json(mantenimiento);
@@ -104,30 +96,25 @@ exports.obtenerMantenimientoPorId = async (req, res) => {
   }
 };
 
+// ─────────────────────────────────────────────────────────────────
+// ACTUALIZAR MANTENIMIENTO
+// ─────────────────────────────────────────────────────────────────
 exports.actualizarMantenimiento = async (req, res) => {
   try {
-    const query = {
-      _id: req.params.id,
-      isActive: true,
-    };
-
     const mantenimiento = await Mantenimiento.findOneAndUpdate(
-      query,
+      { _id: req.params.id, isActive: true },
       req.body,
       { new: true, runValidators: true },
     );
 
     if (!mantenimiento) {
-      return res.status(404).json({
-        msg: "Mantenimiento no encontrado",
-      });
+      return res.status(404).json({ msg: "Mantenimiento no encontrado" });
     }
 
-    //if (req.body.estado === "cerrado" || req.body.estado === "anulado") {
-    //await Bus.findByIdAndUpdate(mantenimiento.busId, {
-    //estado: "activo",
-    //});
-    //}
+    // FIX: devolver el bus a "activo" cuando el mantenimiento se cierra o anula
+    if (req.body.estado === "cerrado" || req.body.estado === "anulado") {
+      await Bus.findByIdAndUpdate(mantenimiento.busId, { estado: "activo" });
+    }
 
     res.json(mantenimiento);
   } catch (error) {
@@ -136,36 +123,26 @@ exports.actualizarMantenimiento = async (req, res) => {
   }
 };
 
+// ─────────────────────────────────────────────────────────────────
+// ELIMINAR MANTENIMIENTO (soft delete — deja historial)
+// ─────────────────────────────────────────────────────────────────
 exports.eliminarMantenimiento = async (req, res) => {
   try {
-    const query = {
-      _id: req.params.id,
-      isActive: true,
-    };
-
     const mantenimiento = await Mantenimiento.findOneAndUpdate(
-      query,
-      {
-        isActive: false,
-        estado: "anulado",
-      },
+      { _id: req.params.id, isActive: true },
+      { isActive: false, estado: "anulado" },
       { new: true },
     );
 
     if (!mantenimiento) {
-      return res.status(404).json({
-        msg: "Mantenimiento no encontrado",
-      });
+      return res.status(404).json({ msg: "Mantenimiento no encontrado" });
     }
-    console.log("ID mantenimiento:", ordenActual.mantenimientoId);
 
-    await Bus.findByIdAndUpdate(mantenimiento.busId, {
-      estado: "activo",
-    });
+    // FIX: se eliminó la referencia a "ordenActual" que no existía y crasheaba el servidor
+    // Devolver el bus a "activo" al anular el mantenimiento
+    await Bus.findByIdAndUpdate(mantenimiento.busId, { estado: "activo" });
 
-    res.json({
-      msg: "Mantenimiento eliminado correctamente",
-    });
+    res.json({ msg: "Mantenimiento eliminado correctamente" });
   } catch (error) {
     console.error("ERROR ELIMINAR MANTENIMIENTO:", error);
     res.status(500).json({ error: error.message });

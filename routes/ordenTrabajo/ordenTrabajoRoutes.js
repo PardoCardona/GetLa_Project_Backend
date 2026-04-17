@@ -6,15 +6,18 @@ const authMidd = require("../../middleware/authMidd");
 // 🔥 CREAR
 router.post("/", authMidd, ordenCtrl.crearOrden);
 
-// 🔥 OBTENER POR MANTENIMIENTO (CORRECTO)
+// 🔥 OBTENER POR MANTENIMIENTO
 router.get(
   "/mantenimiento/:mantenimientoId",
   authMidd,
-  ordenCtrl.obtenerOrdenPorMantenimiento,
+  ordenCtrl.obtenerOrdenPorMantenimiento
 );
 
 // 🔥 ACTUALIZAR
 router.put("/:id", authMidd, ordenCtrl.actualizarOrden);
+
+// 🔥 🔥 NUEVO — CERRAR ORDEN (CLAVE)
+router.put("/:id/cerrar", authMidd, ordenCtrl.cerrarOrden);
 
 // 🔥 ELIMINAR
 router.delete("/:id", authMidd, ordenCtrl.eliminarOrden);

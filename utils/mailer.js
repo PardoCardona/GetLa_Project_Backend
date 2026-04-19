@@ -5,7 +5,7 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 
 async function sendResetEmail(to, resetUrl) {
   await resend.emails.send({
-    from: "GetLa <onboarding@resend.dev>",
+    from: "GetLa <noreply@mail.getlaapp.cl>",
     to,
     subject: "Recuperación de contraseña - GetLa",
 

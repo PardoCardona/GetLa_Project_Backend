@@ -23,7 +23,7 @@ const soloAdmin = (req, res, next) => {
       msg: "Acceso denegado. Solo administradores.",
     });
   }
-console.log("va el rol",req.usuario.rol);
+
   // 5. Acceso permitido
   next();
 };

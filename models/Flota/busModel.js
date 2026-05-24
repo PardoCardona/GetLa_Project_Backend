@@ -25,6 +25,11 @@ const busSchema = new mongoose.Schema(
     modelo: String,
     anio: Number,
 
+    //dato nuevo
+    fechaRevisionTecnicomecanica: {
+     type: Date,
+     },
+
     estado: {
       type: String,
       enum: ["activo", "en_taller"],
